@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/theme/app_theme.dart';
 import 'features/home/home_screen.dart';
+import 'features/updates/providers/video_provider.dart';
 
-void main() {
-  // Ensure we can access services before running the app
+import 'features/home/providers/category_provider.dart';
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Set transparent status bar
+  await dotenv.load(fileName: ".env");
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
@@ -21,11 +26,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Lead Generation App',
-      theme: AppTheme.lightTheme,
-      home: const HomeScreen(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => VideoProvider()),
+        ChangeNotifierProvider(create: (_) => CategoryProvider()),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Lead Generation App',
+        theme: AppTheme.lightTheme,
+        home: const HomeScreen(),
+      ),
     );
   }
 }

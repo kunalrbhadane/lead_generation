@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:lead_generation/features/home/home_screen.dart';
+import 'package:lead_generation/features/leads/quick_support_request_screen.dart';
+import 'package:lead_generation/features/profile/your_profile_screen.dart';
+import 'package:lead_generation/features/search/search_screen.dart';
+import 'package:lead_generation/features/updates/models/video_model.dart';
+import '../../shared/widgets/custom_bottom_nav_bar.dart';
 import '../../core/theme/app_theme.dart';
-import '../home/home_screen.dart';
-import '../search/search_screen.dart';
-import '../profile/your_profile_screen.dart';
+
+import 'package:provider/provider.dart';
+import '../updates/providers/video_provider.dart';
+import 'package:url_launcher/url_launcher.dart'; // To open video URLs
 
 class UpdatesScreen extends StatefulWidget {
   const UpdatesScreen({super.key});
@@ -12,7 +19,23 @@ class UpdatesScreen extends StatefulWidget {
 }
 
 class _UpdatesScreenState extends State<UpdatesScreen> {
-  bool _isVideosTab = true; // State to track active tab
+  bool _isVideosTab = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fetch videos when screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<VideoProvider>(context, listen: false).fetchVideos();
+    });
+  }
+
+  Future<void> _launchUrl(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+       debugPrint('Could not launch $url');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +50,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
               gradient: AppTheme.headerGradient,
             ),
           ),
-
+          
           // 2. Safe Area Content
           SafeArea(
             child: Column(
@@ -141,7 +164,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 15),
 
                 // White Scrollable Content Area
                 Expanded(
@@ -167,15 +190,38 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                               color: Colors.black87,
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 8),
                           
-                          if (_isVideosTab) ...[
-                            _buildVideoCard(context),
-                            _buildVideoCard(context),
-                            _buildVideoCard(context),
-                          ] else ...[
-                            _buildUpdateCard(),
-                            _buildUpdateCard(),
+                          if (_isVideosTab) 
+                             Consumer<VideoProvider>(
+                               builder: (context, provider, child) {
+                                 if (provider.isLoading) {
+                                   return const Center(child: Padding(
+                                     padding: EdgeInsets.all(20.0),
+                                     child: CircularProgressIndicator(),
+                                   ));
+                                 }
+                                 
+                                 if (provider.errorMessage != null) {
+                                   return Center(child: Padding(
+                                     padding: const EdgeInsets.all(20.0),
+                                     child: Text('Error: ${provider.errorMessage}'),
+                                   ));
+                                 }
+
+                                 if (provider.videos.isEmpty) {
+                                    return const Center(child: Padding(
+                                      padding: EdgeInsets.all(20.0),
+                                      child: Text("No videos found."),
+                                    ));
+                                 }
+
+                                 return Column(
+                                   children: provider.videos.map((video) => _buildVideoCard(context, video)).toList(),
+                                 );
+                               },
+                             )
+                           else ...[
                             _buildUpdateCard(),
                             _buildUpdateCard(),
                           ]
@@ -193,74 +239,83 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
             bottom: 0,
             left: 0,
             right: 0,
-            child: _buildBottomNavBar(context),
+            child: const CustomBottomNavBar(currentIndex: 2),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildVideoCard(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.bottomCenter,
-        children: [
-          // Main Content Card
-          Container(
-             margin: const EdgeInsets.only(top: 10), // Space for overlap
-             padding: const EdgeInsets.all(15),
-             decoration: BoxDecoration(
-               color: const Color(0xFFF9F9F9),
-               borderRadius: BorderRadius.circular(25),
-             ),
-             child: Column(
-               crossAxisAlignment: CrossAxisAlignment.start,
-               children: [
-                 const Text("Success Story", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
-                 const SizedBox(height: 4),
-                 const Text("From Farmer to Entrepreneur", style: TextStyle(color: Colors.grey, fontSize: 13)),
-                 const SizedBox(height: 15),
-                 // Image
-                 Stack(
-                   alignment: Alignment.center,
-                   clipBehavior: Clip.none,
-                   children: [
-                     ClipPath(
-                       clipper: const _CardClipper(holeRadius: 25),
-                       child: Image.asset(
-                         'assets/images/video_thumbnail.png', 
-                         height: 180,
-                         width: double.infinity,
-                         fit: BoxFit.cover,
+  Widget _buildVideoCard(BuildContext context, VideoModel video) {
+    return GestureDetector(
+      onTap: () {
+        if (video.videoUrl.isNotEmpty) {
+           _launchUrl(video.videoUrl);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.bottomCenter,
+          children: [
+            // Main Content Card
+            Container(
+               margin: const EdgeInsets.only(top: 10), // Space for overlap
+               padding: const EdgeInsets.all(15),
+               decoration: BoxDecoration(
+                 color: const Color(0xFFF9F9F9),
+                 borderRadius: BorderRadius.circular(25),
+               ),
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                   Text(video.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black)),
+                   const SizedBox(height: 4),
+                   Text(video.description, style: const TextStyle(color: Colors.grey, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+                   const SizedBox(height: 15),
+                   // Image / Placeholder for video
+                   Stack(
+                     alignment: Alignment.center,
+                     clipBehavior: Clip.none,
+                     children: [
+                       ClipPath(
+                         clipper: const _CardClipper(holeRadius: 25),
+                         child: Container(
+                          height: 180,
+                          width: double.infinity,
+                          color: Colors.black12, // Placeholder color
+                          child: const Center(child: Icon(Icons.videocam, color: Colors.white, size: 50)),
+                          // If we had a thumbnail URL, we would use Image.network here
+                          // child: Image.network(video.thumbnailUrl, fit: BoxFit.cover),
+                         ),
                        ),
-                     ),
-                     Container(
-                        height: 50, width: 50,
-                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                        child: const Icon(Icons.play_arrow_rounded, color: AppTheme.lightGreen, size: 35),
-                     ),
-                     // Heart Icon (Positioned in the cutout)
-                     Positioned(
-                        right: -3,
-                        top: -3,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: AppTheme.darkGreen, 
-                            shape: BoxShape.circle,
-                            border: Border.fromBorderSide(BorderSide(color: Colors.white, width: 3)) 
+                       Container(
+                          height: 50, width: 50,
+                          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                          child: const Icon(Icons.play_arrow_rounded, color: AppTheme.lightGreen, size: 35),
+                       ),
+                       // Heart Icon (Positioned in the cutout)
+                       Positioned(
+                          right: -3,
+                          top: -3,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: AppTheme.darkGreen, 
+                              shape: BoxShape.circle,
+                              border: Border.fromBorderSide(BorderSide(color: Colors.white, width: 3)) 
+                            ),
+                            child: const Icon(Icons.favorite, color: Colors.white, size: 25),
                           ),
-                          child: const Icon(Icons.favorite, color: Colors.white, size: 25),
                         ),
-                      ),
-                   ],
-                 )
-               ],
-             )
-          ),
-        ],
+                     ],
+                   )
+                 ],
+               )
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -270,9 +325,15 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
+        
         color: Colors.white,
         borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: AppTheme.lightGreen, width: 1),
+        
+          border: Border(
+    top: BorderSide(
+      color: AppTheme.lightGreen,
+      width: 2,
+    )),
       ),
       child: Row(
         children: [
@@ -305,12 +366,12 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Icon(Icons.calendar_month, color: AppTheme.darkGreen, size: 16),
+                    const Icon(Icons.calendar_month, color: AppTheme.lightGreen, size: 16),
                     const SizedBox(width: 4),
                     const Text(
                       "12 June 2025",
                       style: TextStyle(
-                        color: AppTheme.darkGreen,
+                        color: AppTheme.lightGreen,
                         fontSize: 12,
                         fontWeight: FontWeight.w500
                       ),
@@ -319,7 +380,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                     const Text(
                       "2 hours ago",
                       style: TextStyle(
-                        color: Colors.grey,
+                         color: AppTheme.lightGreen,
                         fontSize: 12,
                       ),
                     ),
@@ -415,20 +476,28 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           const SizedBox(width: 10),
 
           // Right Pill: Need Help
-          Container(
-             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-             decoration: BoxDecoration(
-               gradient: AppTheme.headerGradient, 
-               borderRadius: BorderRadius.circular(30),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => const QuickSupportRequestScreen()),
+              );
+            },
+            child: Container(
+               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+               decoration: BoxDecoration(
+                 gradient: AppTheme.headerGradient, 
+                 borderRadius: BorderRadius.circular(30),
+               ),
+               child: Row(
+                 children: const [
+                   Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 20),
+                   SizedBox(width: 8),
+                   Text('Need Help ?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                 ],
+               ),
              ),
-             child: Row(
-               children: const [
-                 Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 20),
-                 SizedBox(width: 8),
-                 Text('Need Help ?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-               ],
-             ),
-           )
+          )
         ],
       ),
     );

@@ -2,10 +2,21 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../home/home_screen.dart';
 import '../search/search_screen.dart';
+import '../../shared/widgets/custom_bottom_nav_bar.dart';
 import '../updates/updates_screen.dart';
+import '../leads/your_leads_screen.dart';
+import '../donation/donate_now_screen.dart';
+import '../leads/quick_support_request_screen.dart';
 
-class YourProfileScreen extends StatelessWidget {
+class YourProfileScreen extends StatefulWidget {
   const YourProfileScreen({super.key});
+
+  @override
+  State<YourProfileScreen> createState() => _YourProfileScreenState();
+}
+
+class _YourProfileScreenState extends State<YourProfileScreen> {
+  bool _isPersonalInfoExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +86,7 @@ class YourProfileScreen extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 120), // Bottom padding for nav bar
                       child: Column(
                         children: [
-                          SizedBox(height: 30),
+                          const SizedBox(height: 30),
                           // Profile Image Section (Overlapping the top edge)
                           Transform.translate(
                             offset: const Offset(0, 0),
@@ -140,10 +151,23 @@ class YourProfileScreen extends StatelessWidget {
                           ),
                              const SizedBox(height: 20),
                           // Menu Options
-                          _buildMenuTile(Icons.person, "Personal Information", () {}),
-                          _buildMenuTile(Icons.person_add_alt_1, "Your Leads", () {}),
+                          
+                          // Personal Information Expandable Tile
+                          _buildExpandableInfoTile(),
+                          
+                          _buildMenuTile(Icons.person_add_alt_1, "Your Leads", () {
+                            Navigator.push(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const YourLeadsScreen()),
+                            );
+                          }),
                           _buildMenuTile(Icons.description, "Documents", () {}),
-                          _buildMenuTile(Icons.volunteer_activism, "Donate Now", () {}),
+                          _buildMenuTile(Icons.volunteer_activism, "Donate Now", () {
+                             Navigator.push(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const DonateNowScreen()),
+                            );
+                          }),
                         ],
                       ),
                     ),
@@ -158,7 +182,7 @@ class YourProfileScreen extends StatelessWidget {
             bottom: 0,
             left: 0,
             right: 0,
-            child: _buildBottomNavBar(context),
+            child: const CustomBottomNavBar(currentIndex: 3),
           ),
         ],
       ),
@@ -185,8 +209,8 @@ class YourProfileScreen extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppTheme.lightGreenBg, // Light green bg for icon
+          decoration: const BoxDecoration(
+            color: AppTheme.lightGreenBg, 
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: AppTheme.darkGreen, size: 20),
@@ -200,103 +224,183 @@ class YourProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomNavBar(BuildContext context) {
+  Widget _buildExpandableInfoTile() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12 , 10, 20, 12),
+      margin: const EdgeInsets.only(bottom: 15),
       decoration: BoxDecoration(
         color: AppTheme.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(38),
-          topRight: Radius.circular(38),
-          bottomLeft: Radius.circular(38),
-          bottomRight: Radius.circular(38),
-        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, -5),
-          ),
-        ],
+           BoxShadow(
+             color: Colors.black.withOpacity(0.02),
+             blurRadius: 10,
+             offset: const Offset(0, 4)
+           )
+         ]
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
         children: [
-          // Left Pill: Navigation Icons
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
+          ListTile(
+            onTap: () {
+              setState(() {
+                _isPersonalInfoExpanded = !_isPersonalInfoExpanded;
+              });
+            },
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
                 color: AppTheme.lightGreenBg, 
-                borderRadius: BorderRadius.circular(40),
+                shape: BoxShape.circle,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+              child: const Icon(Icons.person, color: AppTheme.darkGreen, size: 20),
+            ),
+            title: const Text(
+              "Personal Information",
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            trailing: Icon(
+              _isPersonalInfoExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, 
+              size: 24, 
+              color: AppTheme.textGrey
+            ),
+          ),
+          if (_isPersonalInfoExpanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              child: Column(
                 children: [
-                   GestureDetector(
-                     onTap: () {
-                         Navigator.pushAndRemoveUntil(
-                          context, 
-                          MaterialPageRoute(builder: (context) => const HomeScreen()),
-                          (route) => false
-                        );
-                     },
-                     child: const Icon(Icons.home_outlined, color: AppTheme.darkGreen, size: 26),
-                   ),
-                   
-                   GestureDetector(
-                     onTap: () {
-                       Navigator.push(
-                          context, 
-                          MaterialPageRoute(builder: (context) => const SearchScreen()),
-                        );
-                     },
-                     child: const Icon(Icons.search, color: AppTheme.darkGreen, size: 26),
-                   ),
+                  const Divider(height: 1),
+                  const SizedBox(height: 10),
+                  _buildLabel("Full Name"),
+                  _buildTextField("Lily wilson"),
+                  
+                  _buildLabel("Contact No"),
+                  _buildTextField("8547455141", keyboardType: TextInputType.phone),
 
-                   GestureDetector(
-                    onTap: () {
-                       Navigator.push(
-                          context, 
-                          MaterialPageRoute(builder: (context) => const UpdatesScreen()),
-                        );
-                     },
-                    child: const Icon(Icons.play_circle_outline, color: AppTheme.darkGreen, size: 26),
-                   ),
+                  _buildLabel("Gender"),
+                  _buildTextField("Female"),
 
-                   // Person Active
-                   Container(
-                    width: 45,
-                    height: 45,
-                    decoration: const BoxDecoration(
-                      gradient: AppTheme.headerGradient, 
-                      shape: BoxShape.circle,
+                  _buildLabel("Age"),
+                  _buildTextField("21", keyboardType: TextInputType.number),
+
+                  _buildLabel("Whatsapp contact no"),
+                  _buildTextField("8574857485", keyboardType: TextInputType.phone),
+
+                  _buildLabel("State"),
+                  _buildTextField("Maharashtra"),
+
+                  _buildLabel("City"),
+                  _buildTextField("Sambhajinagar"),
+
+                  _buildLabel("Caste"),
+                  _buildTextField("OBC"),
+
+                  _buildLabel("About Description"),
+                  Container(
+                    height: 120,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
                     ),
-                    child: const Icon(Icons.person, color: AppTheme.white, size: 24),
+                    child: const TextField(
+                      maxLines: null,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        hintText: "Enter about yourself",
+                        hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 20),
+
+                  // Save Button
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.headerGradient,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.darkGreen.withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        )
+                      ]
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () {
+                         setState(() {
+                           _isPersonalInfoExpanded = false; // Collapse after save
+                         });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Text(
+                            "Save Changes",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18, 
+                              fontWeight: FontWeight.bold
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-          ),
-          
-          const SizedBox(width: 10),
-
-          // Right Pill: Need Help
-          Container(
-             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-             decoration: BoxDecoration(
-               gradient: AppTheme.headerGradient, 
-               borderRadius: BorderRadius.circular(30),
-             ),
-             child: Row(
-               children: const [
-                 Icon(Icons.chat_bubble_outline_rounded, color: AppTheme.white, size: 20),
-                 SizedBox(width: 8),
-                 Text('Need Help ?', style: TextStyle(color: AppTheme.white, fontWeight: FontWeight.bold, fontSize: 15)),
-               ],
-             ),
-           )
+            )
         ],
+      ),
+    );
+  }
+
+  Widget _buildLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, top: 15),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          label,
+          style: const TextStyle(
+             color: Color(0xFF4B4B4B), // Dark Grey
+             fontSize: 14,
+             fontWeight: FontWeight.w500
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(String hint, {TextInputType? keyboardType}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFcfcfc), // Slightly off-white
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: TextField(
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          hintText: hint,
+          hintStyle: const TextStyle(color: Colors.black87, fontSize: 14),
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        ),
       ),
     );
   }

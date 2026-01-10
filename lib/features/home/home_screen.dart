@@ -1,12 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:lead_generation/features/leads/quick_support_request_screen.dart';
 import 'package:lead_generation/features/profile/your_profile_screen.dart';
 import 'package:lead_generation/features/search/search_screen.dart';
 import 'package:lead_generation/features/updates/updates_screen.dart';
+import '../../shared/widgets/custom_bottom_nav_bar.dart';
 import '../../core/theme/app_theme.dart';
+import 'providers/category_provider.dart';
+import 'models/category_model.dart';
 
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _selectedCategory = 'All';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<CategoryProvider>(context, listen: false).fetchCategories();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +36,7 @@ class HomeScreen extends StatelessWidget {
         children: [
           // Background Gradient
           Container(
-            height: 350, 
+            height: 600, 
             decoration: const BoxDecoration(
               gradient: AppTheme.headerGradient,
             ),
@@ -29,7 +49,7 @@ class HomeScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 27),
                         _buildHeader(),
                         const SizedBox(height: 20),
                         _buildSearchBar(context),
@@ -154,39 +174,66 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 15),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            children: [
-              _buildCategoryChip('All', Icons.grid_view_rounded, isSelected: true),
-              _buildCategoryChip('Students', Icons.school, isSelected: false),
-              _buildCategoryChip('Doctors', Icons.medical_services, isSelected: false),
-            ],
+        SizedBox(
+          height: 65, // Fixed height for the scrolling list
+          child: Consumer<CategoryProvider>(
+            builder: (context, provider, child) {
+              if (provider.isLoading) {
+                return const Center(child: Padding(
+                  padding: EdgeInsets.only(left: 20),
+                  child: CircularProgressIndicator(color: Colors.white),
+                ));
+              }
+              
+              // Combine "All" with fetched categories
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: 1 + provider.categories.length, // 1 for "All"
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                     return _buildCategoryChip(
+                       'All', 
+                       Icons.grid_view_rounded, 
+                       isSelected: _selectedCategory == 'All',
+                       onTap: () => setState(() => _selectedCategory = 'All')
+                     );
+                  }
+                  
+                  final category = provider.categories[index - 1];
+                  return _buildCategoryItem(
+                    category, 
+                    isSelected: _selectedCategory == category.name,
+                    onTap: () => setState(() => _selectedCategory = category.name)
+                  );
+                },
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  Widget _buildCategoryChip(String label, IconData icon, {required bool isSelected}) {
-    if (isSelected) {
-      return Container(
+  Widget _buildCategoryChip(String label, IconData icon, {required bool isSelected, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: isSelected ? Container(
         margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.all(4), // Gap between border and chip
+        padding: const EdgeInsets.all(4), 
         decoration: BoxDecoration(
           border: Border.all(color: Colors.white, width: 1.5),
           borderRadius: BorderRadius.circular(40),
         ),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Adjusted vertical padding
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(30),
           ),
           child: Row(
             children: [
-              Icon(icon, color: AppTheme.darkGreen, size: 22),
+              Icon(icon, color: AppTheme.darkGreen, size: 30),
               const SizedBox(width: 8),
               Text(
                 label,
@@ -199,9 +246,7 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
         ),
-      );
-    } else {
-      return Container(
+      ) : Container(
         margin: const EdgeInsets.only(right: 12),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
@@ -210,7 +255,7 @@ class HomeScreen extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white, size: 22),
+            Icon(icon, color: Colors.white, size: 30),
             const SizedBox(width: 8),
             Text(
               label,
@@ -222,8 +267,84 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
-      );
-    }
+      ),
+    );
+  }
+
+  Widget _buildCategoryItem(CategoryModel category, {required bool isSelected, required VoidCallback onTap}) {
+    // For dynamic categories, we might want to use the image URL if available, 
+    // but for now we'll stick to the chip style using a default icon or ignoring the image for consistency with the design provided.
+    // If the image is crucial, we can update this. The API returns an Image URL (png).
+    
+    // Let's use the Image URL if it's valid, otherwise a default icon.
+    // Since the design is pill-shaped chips, images might look small.
+    
+    return GestureDetector(
+      onTap: onTap,
+      child: isSelected ? Container(
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.all(4), 
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.white, width: 1.5),
+          borderRadius: BorderRadius.circular(40),
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: Row(
+            children: [
+              // Display small image
+               ClipOval(
+                 child: Image.network(
+                   category.imageUrl,
+                   width: 35, height: 35, fit: BoxFit.cover,
+                   errorBuilder: (ctx, err, _) => const Icon(Icons.category, color: AppTheme.darkGreen, size: 35),
+                 ),
+               ),
+              const SizedBox(width: 8),
+              Text(
+                category.name,
+                style: const TextStyle(
+                  color: AppTheme.darkGreen,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ) : Container(
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.lightGreen.withOpacity(0.4),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
+          children: [
+             ClipOval(
+                 child: Image.network(
+                   category.imageUrl,
+                   width: 35, height: 35, fit: BoxFit.cover,
+                   errorBuilder: (ctx, err, _) => const Icon(Icons.category, color: Colors.white, size: 35),
+                 ),
+               ),
+            const SizedBox(width: 8),
+            Text(
+              category.name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
 
@@ -550,20 +671,28 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(width: 10), // Reduced gap to 10
 
           // Right Pill: Need Help
-          Container(
-             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16), // Reduced horizontal padding to 16
-             decoration: BoxDecoration(
-               gradient: AppTheme.headerGradient, 
-               borderRadius: BorderRadius.circular(30),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (context) => const QuickSupportRequestScreen()),
+              );
+            },
+            child: Container(
+               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16), // Reduced horizontal padding to 16
+               decoration: BoxDecoration(
+                 gradient: AppTheme.headerGradient, 
+                 borderRadius: BorderRadius.circular(30),
+               ),
+               child: Row(
+                 children: const [
+                   Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 20),
+                   SizedBox(width: 8),
+                   Text('Need Help ?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                 ],
+               ),
              ),
-             child: Row(
-               children: const [
-                 Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 20),
-                 SizedBox(width: 8),
-                 Text('Need Help ?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-               ],
-             ),
-           )
+          )
         ],
       ),
     );

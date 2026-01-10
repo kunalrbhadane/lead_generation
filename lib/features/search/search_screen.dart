@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../shared/widgets/custom_bottom_nav_bar.dart';
 import '../../core/theme/app_theme.dart';
 import '../home/home_screen.dart'; // Import for navigation back if needed, mainly for shared widgets context
 import '../profile/profile_screen.dart';
 import '../updates/updates_screen.dart';
 import '../profile/your_profile_screen.dart';
+import '../leads/quick_support_request_screen.dart';
 
 class SearchScreen extends StatelessWidget {
   const SearchScreen({super.key});
