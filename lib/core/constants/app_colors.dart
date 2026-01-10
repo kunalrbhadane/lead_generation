@@ -16,4 +16,5 @@ class AppColors {
 
   // Other
   static const Color white = Colors.white;
+  
 }

@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-
 import 'package:flutter/services.dart';
-import 'package:lead_generation/core/constants/app_colors.dart';
 import 'package:lead_generation/features/splash_screen/splash_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'core/theme/app_theme.dart';
+import 'features/updates/providers/video_provider.dart';
 
+import 'features/home/providers/category_provider.dart';
 
-void main() {
-  // Ensure we can access services before running the app
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Set transparent status bar
+  await dotenv.load(fileName: ".env");
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
@@ -24,15 +26,20 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Lead Generation App',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primaryGreen),
-        useMaterial3: true,
-        textTheme: GoogleFonts.poppinsTextTheme(),
-      ),  
-      home: const SplashScreen(),
+    return MultiProvider(
+      
+      providers: [
+        ChangeNotifierProvider(create: (_) => VideoProvider()),
+        ChangeNotifierProvider(create: (_) => CategoryProvider()),
+      ],
+      child: MaterialApp(
+
+        debugShowCheckedModeBanner: false,
+        title: 'Lead Generation App',
+        theme: AppTheme.lightTheme,
+        
+        home: const SplashScreen(),
+      ),
     );
   }
 }
