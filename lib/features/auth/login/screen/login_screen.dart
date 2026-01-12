@@ -5,7 +5,7 @@ import 'package:flutter/gestures.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../registration/screen/register_screen.dart';
-import '../../../../features/home/home_screen.dart';
+import '../../../../features/main/main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -234,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   } else {
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (context) => const HomeScreen()),
+                      MaterialPageRoute(builder: (context) => const MainScreen()),
                     );
                   }
                 },

@@ -8,10 +8,12 @@ import '../../features/leads/quick_support_request_screen.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
+  final Function(int) onTap;
 
   const CustomBottomNavBar({
     super.key,
     required this.currentIndex,
+    required this.onTap,
   });
 
   @override
@@ -50,43 +52,27 @@ class CustomBottomNavBar extends StatelessWidget {
                 children: [
                   _buildNavIcon(
                     context,
+                    index: 0,
                     icon: currentIndex == 0 ? Icons.home : Icons.home_outlined,
                     isSelected: currentIndex == 0,
-                    onTap: () {
-                      if (currentIndex != 0) {
-                        _navigateTo(context, const HomeScreen());
-                      }
-                    },
                   ),
                   _buildNavIcon(
                     context,
+                    index: 1,
                     icon: currentIndex == 1 ? Icons.search : Icons.search_outlined,
                     isSelected: currentIndex == 1,
-                    onTap: () {
-                      if (currentIndex != 1) {
-                         _navigateTo(context, const SearchScreen());
-                      }
-                    },
                   ),
                   _buildNavIcon(
                     context,
+                    index: 2,
                     icon: currentIndex == 2 ? Icons.play_circle_fill : Icons.play_circle_outline,
                     isSelected: currentIndex == 2,
-                    onTap: () {
-                      if (currentIndex != 2) {
-                         _navigateTo(context, const UpdatesScreen());
-                      }
-                    },
                   ),
                   _buildNavIcon(
                     context,
+                    index: 3,
                     icon: currentIndex == 3 ? Icons.person : Icons.person_outline,
                     isSelected: currentIndex == 3,
-                    onTap: () {
-                      if (currentIndex != 3) {
-                         _navigateTo(context, const YourProfileScreen());
-                      }
-                    },
                   ),
                 ],
               ),
@@ -130,24 +116,11 @@ class CustomBottomNavBar extends StatelessWidget {
     );
   }
 
-  void _navigateTo(BuildContext context, Widget page) {
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => page,
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 200),
-      ),
-    );
-  }
-
   Widget _buildNavIcon(
     BuildContext context, {
+    required int index,
     required IconData icon,
     required bool isSelected,
-    required VoidCallback onTap,
   }) {
     if (isSelected) {
       return Container(
@@ -161,7 +134,7 @@ class CustomBottomNavBar extends StatelessWidget {
       );
     } else {
       return GestureDetector(
-        onTap: onTap,
+        onTap: () => onTap(index),
         child: Icon(icon, color: AppTheme.darkGreen, size: 26),
       );
     }

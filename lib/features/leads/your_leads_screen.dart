@@ -114,13 +114,7 @@ class _YourLeadsScreenState extends State<YourLeadsScreen> {
             ),
           ),
 
-          // 3. Bottom Navigation Bar
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: const CustomBottomNavBar(currentIndex: 3),
-          ),
+
           
           // 4. Floating Action Button
           Positioned(
@@ -292,105 +286,4 @@ class _YourLeadsScreenState extends State<YourLeadsScreen> {
     );
   }
 
-  Widget _buildBottomNavBar(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12 , 10, 20, 12),
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(38),
-          topRight: Radius.circular(38),
-          bottomLeft: Radius.circular(38),
-          bottomRight: Radius.circular(38),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.lightGreenBg, 
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                children: [
-                   GestureDetector(
-                     onTap: () {
-                         Navigator.pushAndRemoveUntil(
-                          context, 
-                          MaterialPageRoute(builder: (context) => const HomeScreen()),
-                          (route) => false
-                        );
-                     },
-                     child: const Icon(Icons.home_outlined, color: AppTheme.darkGreen, size: 26),
-                   ),
-                   GestureDetector(
-                     onTap: () {
-                       Navigator.push(
-                          context, 
-                          MaterialPageRoute(builder: (context) => const SearchScreen()),
-                        );
-                     },
-                     child: const Icon(Icons.search, color: AppTheme.darkGreen, size: 26),
-                   ),
-                   GestureDetector(
-                    onTap: () {
-                       Navigator.push(
-                          context, 
-                          MaterialPageRoute(builder: (context) => const UpdatesScreen()),
-                        );
-                     },
-                    child: const Icon(Icons.play_circle_outline, color: AppTheme.darkGreen, size: 26),
-                   ),
-                   GestureDetector(
-                    onTap: () {
-                       Navigator.push(
-                          context, 
-                          MaterialPageRoute(builder: (context) => const YourProfileScreen()),
-                        );
-                     },
-                    // Still show active person icon as we are technically within the profile section flow
-                    child: const Icon(Icons.person, color: AppTheme.darkGreen, size: 26),
-                   ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context, 
-                MaterialPageRoute(builder: (context) => const QuickSupportRequestScreen()),
-              );
-            },
-            child: Container(
-               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-               decoration: BoxDecoration(
-                 gradient: AppTheme.headerGradient, 
-                 borderRadius: BorderRadius.circular(30),
-               ),
-               child: Row(
-                 children: const [
-                   Icon(Icons.chat_bubble_outline_rounded, color: AppTheme.white, size: 20),
-                   SizedBox(width: 8),
-                   Text('Need Help ?', style: TextStyle(color: AppTheme.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                 ],
-               ),
-             ),
-          )
-        ],
-      ),
-    );
-  }
 }

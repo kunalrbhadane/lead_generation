@@ -1,14 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../shared/widgets/custom_bottom_nav_bar.dart';
 import '../../core/theme/app_theme.dart';
-import '../home/home_screen.dart'; // Import for navigation back if needed, mainly for shared widgets context
+import '../home/home_screen.dart'; 
 import '../profile/profile_screen.dart';
 import '../updates/updates_screen.dart';
 import '../profile/your_profile_screen.dart';
 import '../leads/quick_support_request_screen.dart';
+import '../home/providers/category_provider.dart';
+import '../home/models/category_model.dart';
 
-class SearchScreen extends StatelessWidget {
+
+class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
+
+  @override
+  State<SearchScreen> createState() => _SearchScreenState();
+}
+
+class _SearchScreenState extends State<SearchScreen> {
+  String _selectedCategory = 'All';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<CategoryProvider>(context, listen: false).fetchCategories();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,9 +64,38 @@ class SearchScreen extends StatelessWidget {
                 ),
               ),
             ),
-            _buildBottomNavBar(context),
+
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCategorySkeleton() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: List.generate(4, (index) {
+          return Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                children: [
+                   Container(width: 20, height: 20, color: Colors.white),
+                   const SizedBox(width: 8),
+                   Container(width: 60, height: 14, color: Colors.white),
+                ],
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
@@ -92,53 +141,114 @@ class SearchScreen extends StatelessWidget {
   }
 
   Widget _buildCategories() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _buildCategoryChip('All', Icons.grid_view_rounded, isSelected: false),
-          _buildCategoryChip('Students', Icons.school, isSelected: false),
-          _buildCategoryChip('Doctors', Icons.medical_services, isSelected: true),
-          _buildCategoryChip('Teachers', Icons.people, isSelected: false),
-        ],
+    return Consumer<CategoryProvider>(
+      builder: (context, provider, child) {
+        if (provider.isLoading) {
+          return _buildCategorySkeleton();
+        }
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildCategoryChip(
+                'All', 
+                Icons.grid_view_rounded, 
+                isSelected: _selectedCategory == 'All',
+                onTap: () => setState(() => _selectedCategory = 'All'),
+              ),
+              ...provider.categories.map((category) => _buildCategoryItem(
+                category,
+                isSelected: _selectedCategory == category.name,
+                onTap: () => setState(() => _selectedCategory = category.name),
+              )),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCategoryChip(String label, IconData icon, {required bool isSelected, required VoidCallback onTap}) {
+    // Colors based on image:
+    // Selected (Doctors): Gradient BG, White content
+    // Unselected: Very light green BG, Dark Green content
+    // contentColor was not used in original snippet effectively? Re-implementing correctly.
+    final contentColor = isSelected ? Colors.white : AppTheme.darkGreen;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        decoration: BoxDecoration(
+          color: isSelected ? null : AppTheme.lightGreenBg,
+          gradient: isSelected ? AppTheme.headerGradient : null,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: contentColor, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: contentColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildCategoryChip(String label, IconData icon, {required bool isSelected}) {
-    // Colors based on image:
-    // Selected (Doctors): Gradient BG, White content
-    // Unselected: Very light green BG, Dark Green content
-    final contentColor = isSelected ? Colors.white : AppTheme.darkGreen;
-
-    return Container(
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-      decoration: BoxDecoration(
-        color: isSelected ? null : AppTheme.lightGreenBg,
-        gradient: isSelected ? AppTheme.headerGradient : null,
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: contentColor, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-              color: contentColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+  Widget _buildCategoryItem(CategoryModel category, {required bool isSelected, required VoidCallback onTap}) {
+     final contentColor = isSelected ? Colors.white : AppTheme.darkGreen;
+     
+     return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        decoration: BoxDecoration(
+          color: isSelected ? null : AppTheme.lightGreenBg,
+          gradient: isSelected ? AppTheme.headerGradient : null,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
+          children: [
+             ClipOval(
+               child: Image.network(
+                 category.imageUrl,
+                 width: 20, height: 20, fit: BoxFit.cover,
+                 errorBuilder: (ctx, err, _) => Icon(Icons.category, color: contentColor, size: 20),
+               ),
+             ),
+            const SizedBox(width: 8),
+            Text(
+              category.name,
+              style: TextStyle(
+                color: contentColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPeopleList(BuildContext context) {
-    return ListView(
-      children: [
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Provider.of<CategoryProvider>(context, listen: false).fetchCategories();
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
         _buildPersonCard(
           context,
           name: 'Lily wilson',
@@ -181,7 +291,7 @@ class SearchScreen extends StatelessWidget {
           imageUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80',
         ),
       ],
-    );
+    ));
   }
 
   Widget _buildPersonCard(
@@ -301,100 +411,4 @@ class SearchScreen extends StatelessWidget {
     ));
   }
 
-    Widget _buildBottomNavBar(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12 , 10, 20, 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(38),
-          topRight: Radius.circular(38),
-          bottomLeft: Radius.circular(38),
-          bottomRight: Radius.circular(38),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Left Pill: Navigation Icons
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F8E9), 
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                children: [
-                  // Home is inactive here
-                   GestureDetector(
-                     onTap: () {
-                       Navigator.pop(context);
-                     },
-                     child: const Icon(Icons.home, color: AppTheme.darkGreen, size: 26),
-                   ),
-                   
-                   // Search is ACTIVE here
-                   Container(
-                    width: 45,
-                    height: 45,
-                    decoration: const BoxDecoration(
-                      gradient: AppTheme.headerGradient, 
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.search, color: Colors.white, size: 24),
-                  ),
-
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const UpdatesScreen()),
-                      );
-                    },
-                    child: const Icon(Icons.play_circle_outline, color: AppTheme.darkGreen, size: 26),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const YourProfileScreen()),
-                      );
-                    },
-                    child: const Icon(Icons.person_outline, color: AppTheme.darkGreen, size: 26),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(width: 10),
-
-          // Right Pill: Need Help
-          Container(
-             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-             decoration: BoxDecoration(
-               gradient: AppTheme.headerGradient, 
-               borderRadius: BorderRadius.circular(30),
-             ),
-             child: Row(
-               children: const [
-                 Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 20),
-                 SizedBox(width: 8),
-                 Text('Need Help ?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-               ],
-             ),
-           )
-        ],
-      ),
-    );
-  }
 }

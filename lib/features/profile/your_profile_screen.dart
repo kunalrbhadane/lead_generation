@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
 import '../home/home_screen.dart';
 import '../search/search_screen.dart';
@@ -7,6 +9,9 @@ import '../updates/updates_screen.dart';
 import '../leads/your_leads_screen.dart';
 import '../donation/donate_now_screen.dart';
 import '../leads/quick_support_request_screen.dart';
+import 'package:provider/provider.dart';
+import 'providers/user_provider.dart';
+import 'models/user_model.dart';
 
 class YourProfileScreen extends StatefulWidget {
   const YourProfileScreen({super.key});
@@ -17,11 +22,24 @@ class YourProfileScreen extends StatefulWidget {
 
 class _YourProfileScreenState extends State<YourProfileScreen> {
   bool _isPersonalInfoExpanded = false;
+  bool _isDocumentsExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<UserProvider>(context, listen: false).fetchUser();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Check if keyboard is open
+    bool isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+
     return Scaffold(
       backgroundColor: AppTheme.white,
+      resizeToAvoidBottomInset: true, // Ensure body resizes when keyboard opens
       body: Stack(
         children: [
           // 1. Green Gradient Background (Top Half)
@@ -34,47 +52,56 @@ class _YourProfileScreenState extends State<YourProfileScreen> {
 
           // 2. Safe Area Content
           SafeArea(
-            child: Column(
-              children: [
-                // Header (Back + Title)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: const BoxDecoration(
-                            color: AppTheme.white,
-                            shape: BoxShape.circle,
+            child: RefreshIndicator(
+              onRefresh: () async {
+                 await Provider.of<UserProvider>(context, listen: false).fetchUser();
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.only(bottom: isKeyboardOpen ? 20 : 120),
+                child: Column(
+                  children: [
+                   // Header (Back + Title)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: const BoxDecoration(
+                              color: AppTheme.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.arrow_back_ios_new, size: 20, color: AppTheme.textDark),
                           ),
-                          child: const Icon(Icons.arrow_back_ios_new, size: 20, color: AppTheme.textDark),
                         ),
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            "Your Profile",
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
+                        Expanded(
+                          child: Center(
+                            child: Text(
+                              "Your Profile",
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 44), // Balance Back Button
-                    ],
+                        const SizedBox(width: 44), // Balance Back Button
+                      ],
+                    ),
                   ),
-                ),
+                  
+                  const SizedBox(height: 10),
 
-                const SizedBox(height: 20),
-
-                // White Scrollable Content Area
-                Expanded(
-                  child: Container(
+                   // White Content Area
+                   Container(
                     width: double.infinity,
+                    constraints: BoxConstraints(
+                      minHeight: MediaQuery.of(context).size.height - 100, // Minimal height to look good
+                    ),
                     decoration: const BoxDecoration(
                       color: AppTheme.white,
                       borderRadius: BorderRadius.only(
@@ -82,108 +109,129 @@ class _YourProfileScreenState extends State<YourProfileScreen> {
                         topRight: Radius.circular(30),
                       ),
                     ),
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 120), // Bottom padding for nav bar
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 30),
-                          // Profile Image Section (Overlapping the top edge)
-                          Transform.translate(
-                            offset: const Offset(0, 0),
-                            child: Column(
-                              children: [
-                                Stack(
-                                  alignment: Alignment.center,
-                                  clipBehavior: Clip.none,
-                                  children: [
-                                    // Avatar
-                                    Container(
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(color: AppTheme.gold, width: 3),
-                                        color: AppTheme.white,
-                                      ),
-                                      child: const CircleAvatar(
-                                        radius: 50,
-                                        backgroundImage: NetworkImage('https://i.pravatar.cc/300?img=5'), // Lily Wilson
-                                      ),
-                                    ),
-                                    
-                                    // Medal Badge (Top Right)
-                                    Positioned(
-                                      top: -5,
-                                      right: -5,
-                                      child: Image.asset(
-                                        'assets/images/medal.png',
-                                        width: 35,
-                                        height: 35,
-                                      ),
-                                    ),
+                    child: Consumer<UserProvider>(
+                      builder: (context, provider, child) {
+                        if (provider.isLoading) {
+                          return _buildProfileSkeleton();
+                        }
 
-                                    // Camera Icon (Bottom Left)
-                                    Positioned(
-                                      bottom: 0,
-                                      left: 0,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: const BoxDecoration(
-                                          color: AppTheme.lightGreen, 
-                                          shape: BoxShape.circle,
-                                          border: Border.fromBorderSide(BorderSide(color: AppTheme.white, width: 2))
+                        if (provider.errorMessage != null) {
+                           return Padding(
+                             padding: const EdgeInsets.all(50.0),
+                             child: Center(child: Text('Error: ${provider.errorMessage}')),
+                           );
+                        }
+
+                        final user = provider.user;
+                        if (user == null) {
+                           return const Padding(
+                             padding: EdgeInsets.all(50.0),
+                             child: Center(child: Text('User not found')),
+                           );
+                        }
+
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 30),
+                              // Profile Image Section (Overlapping the top edge)
+                              Transform.translate(
+                                offset: const Offset(0, 0),
+                                child: Column(
+                                  children: [
+                                    Stack(
+                                      alignment: Alignment.center,
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        // Avatar
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: AppTheme.gold, width: 3),
+                                            color: AppTheme.white,
+                                          ),
+                                          child: CircleAvatar(
+                                            radius: 50,
+                                            backgroundImage: NetworkImage(user.userProfile.isNotEmpty ? user.userProfile : 'https://i.pravatar.cc/300?img=5'),
+                                            onBackgroundImageError: (_, __) => const Icon(Icons.person),
+                                          ),
                                         ),
-                                        child: const Icon(Icons.camera_alt, color: AppTheme.white, size: 16),
-                                      ),
+                                        
+                                        // Medal Badge (Top Right)
+                                        Positioned(
+                                          top: -5,
+                                          right: -5,
+                                          child: Image.asset(
+                                            'assets/images/medal.png',
+                                            width: 35,
+                                            height: 35,
+                                            errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                                          ),
+                                        ),
+
+                                        // Camera Icon (Bottom Left)
+                                        Positioned(
+                                          bottom: 0,
+                                          left: 0,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: const BoxDecoration(
+                                              color: AppTheme.lightGreen, 
+                                              shape: BoxShape.circle,
+                                              border: Border.fromBorderSide(BorderSide(color: AppTheme.white, width: 2))
+                                            ),
+                                            child: const Icon(Icons.camera_alt, color: AppTheme.white, size: 16),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      user.fullName,
+                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      user.contactNo,
+                                      style: const TextStyle(fontSize: 14, color: AppTheme.textGrey),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 10),
-                                const Text(
-                                  "Lily wilson",
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  "+91 7897 845 745",
-                                  style: TextStyle(fontSize: 14, color: AppTheme.textGrey),
-                                ),
-                              ],
-                            ),
+                              ),
+                                 const SizedBox(height: 20),
+                              // Menu Options
+                              
+                              // Personal Information Expandable Tile
+                              _buildExpandableInfoTile(user),
+                              
+                              _buildMenuTile(Icons.person_add_alt_1, "Your Leads", () {
+                                Navigator.push(
+                                  context, 
+                                  MaterialPageRoute(builder: (context) => const YourLeadsScreen()),
+                                );
+                              }),
+                              _buildExpandableDocumentsTile(user),
+                              _buildMenuTile(Icons.volunteer_activism, "Donate Now", () {
+                                 Navigator.push(
+                                  context, 
+                                  MaterialPageRoute(builder: (context) => const DonateNowScreen()),
+                                );
+                              }),
+                            ],
                           ),
-                             const SizedBox(height: 20),
-                          // Menu Options
-                          
-                          // Personal Information Expandable Tile
-                          _buildExpandableInfoTile(),
-                          
-                          _buildMenuTile(Icons.person_add_alt_1, "Your Leads", () {
-                            Navigator.push(
-                              context, 
-                              MaterialPageRoute(builder: (context) => const YourLeadsScreen()),
-                            );
-                          }),
-                          _buildMenuTile(Icons.description, "Documents", () {}),
-                          _buildMenuTile(Icons.volunteer_activism, "Donate Now", () {
-                             Navigator.push(
-                              context, 
-                              MaterialPageRoute(builder: (context) => const DonateNowScreen()),
-                            );
-                          }),
-                        ],
+                        );
+                      },
                       ),
-                    ),
-                  ),
-                ),
-              ],
+            ),
+            ],
+                   ),
+                
+              ),
             ),
           ),
 
-          // 3. Bottom Navigation Bar
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: const CustomBottomNavBar(currentIndex: 3),
-          ),
+
         ],
       ),
     );
@@ -224,7 +272,7 @@ class _YourProfileScreenState extends State<YourProfileScreen> {
     );
   }
 
-  Widget _buildExpandableInfoTile() {
+  Widget _buildExpandableInfoTile(UserModel user) {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       decoration: BoxDecoration(
@@ -274,28 +322,28 @@ class _YourProfileScreenState extends State<YourProfileScreen> {
                   const Divider(height: 1),
                   const SizedBox(height: 10),
                   _buildLabel("Full Name"),
-                  _buildTextField("Lily wilson"),
+                  _buildTextField(user.fullName),
                   
                   _buildLabel("Contact No"),
-                  _buildTextField("8547455141", keyboardType: TextInputType.phone),
+                  _buildTextField(user.contactNo, keyboardType: TextInputType.phone),
 
                   _buildLabel("Gender"),
-                  _buildTextField("Female"),
+                  _buildTextField(user.gender), // Defaulted in model if missing
 
                   _buildLabel("Age"),
-                  _buildTextField("21", keyboardType: TextInputType.number),
+                  _buildTextField(user.age > 0 ? user.age.toString() : "", keyboardType: TextInputType.number),
 
-                  _buildLabel("Whatsapp contact no"),
-                  _buildTextField("8574857485", keyboardType: TextInputType.phone),
+                  _buildLabel("Email"),
+                  _buildTextField(user.email, keyboardType: TextInputType.emailAddress),
 
                   _buildLabel("State"),
-                  _buildTextField("Maharashtra"),
+                  _buildTextField("Maharashtra"), // Hardcoded for now, or add to model if available
 
                   _buildLabel("City"),
-                  _buildTextField("Sambhajinagar"),
+                  _buildTextField(user.city),
 
                   _buildLabel("Caste"),
-                  _buildTextField("OBC"),
+                  _buildTextField(user.caste),
 
                   _buildLabel("About Description"),
                   Container(
@@ -305,9 +353,11 @@ class _YourProfileScreenState extends State<YourProfileScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.grey.shade300),
                     ),
-                    child: const TextField(
+                    child: TextField(
                       maxLines: null,
-                      decoration: InputDecoration(
+                      controller: TextEditingController(text: user.currentStatus), // Pre-fill with something relevant
+                      scrollPadding: const EdgeInsets.only(bottom: 150),
+                      decoration: const InputDecoration(
                         border: InputBorder.none,
                         hintText: "Enter about yourself",
                         hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
@@ -385,6 +435,130 @@ class _YourProfileScreenState extends State<YourProfileScreen> {
     );
   }
 
+  Widget _buildExpandableDocumentsTile(UserModel user) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+           BoxShadow(
+             color: Colors.black.withOpacity(0.02),
+             blurRadius: 10,
+             offset: const Offset(0, 4)
+           )
+         ]
+      ),
+      child: Column(
+        children: [
+          ListTile(
+            onTap: () {
+              setState(() {
+                _isDocumentsExpanded = !_isDocumentsExpanded;
+              });
+            },
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: AppTheme.lightGreenBg, 
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.description, color: AppTheme.darkGreen, size: 20),
+            ),
+            title: const Text(
+              "Documents",
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            trailing: Icon(
+              _isDocumentsExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, 
+              size: 24, 
+              color: AppTheme.textGrey
+            ),
+          ),
+          if (_isDocumentsExpanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(height: 1),
+                  const SizedBox(height: 10),
+                  
+                  _buildLabel("Current Qualification"),
+                  _buildTextField(user.currentQualification),
+
+                  _buildLabel("Field of Study"),
+                  _buildTextField(user.fieldOfStudy),
+
+                  _buildLabel("Institute"),
+                  _buildTextField(user.institute),
+
+                  _buildLabel("Current Status"),
+                  _buildTextField(user.currentStatus),
+                  
+                  const SizedBox(height: 20),
+                  const Text("Uploaded Documents", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 10),
+
+                  _buildDocumentLink("Adhaar Card", user.adhaarCard),
+                  _buildDocumentLink("Income Certificate", user.incomeCertificate),
+                  _buildDocumentLink("OBC Certificate", user.obcCertificate),
+                  _buildDocumentLink("Marksheets", user.marksheets),
+                ],
+              ),
+            )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentLink(String title, String url) {
+    if (url.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          const Icon(Icons.insert_drive_file, color: Colors.grey, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _launchUrl(url),
+            child: const Text(
+              "View",
+              style: TextStyle(color: AppTheme.darkGreen, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    if (url.isEmpty) return;
+    
+    final Uri uri = Uri.parse(url);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not launch document: $url')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error launching URL: $e')),
+      );
+    }
+  }
+
   Widget _buildTextField(String hint, {TextInputType? keyboardType}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
@@ -394,7 +568,9 @@ class _YourProfileScreenState extends State<YourProfileScreen> {
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: TextField(
+        controller: TextEditingController(text: hint), // Set initial value
         keyboardType: keyboardType,
+        scrollPadding: const EdgeInsets.only(bottom: 150), // Ensure field scrolls up well above keyboard
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hint,
@@ -404,4 +580,53 @@ class _YourProfileScreenState extends State<YourProfileScreen> {
       ),
     );
   }
-}
+  }
+
+  Widget _buildProfileSkeleton() {
+    return Shimmer.fromColors(
+       baseColor: Colors.grey[300]!,
+       highlightColor: Colors.grey[100]!,
+       child: Padding(
+         padding: const EdgeInsets.symmetric(horizontal: 20),
+         child: Column(
+           children: [
+             const SizedBox(height: 30),
+             // Avatar Skeleton
+             Container(
+               width: 100,
+               height: 100,
+               decoration: const BoxDecoration(
+                 color: Colors.white,
+                 shape: BoxShape.circle,
+               ),
+             ),
+             const SizedBox(height: 10),
+             Container(width: 150, height: 20, color: Colors.white),
+             const SizedBox(height: 5),
+             Container(width: 100, height: 14, color: Colors.white),
+             
+             const SizedBox(height: 40),
+             
+             // Menu Tiles Skeleton
+             _buildMenuTileSkeleton(),
+             _buildMenuTileSkeleton(),
+             _buildMenuTileSkeleton(),
+             _buildMenuTileSkeleton(),
+           ],
+         ),
+       ),
+    );
+  }
+
+  Widget _buildMenuTileSkeleton() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      height: 60,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+    );
+  }
+
+

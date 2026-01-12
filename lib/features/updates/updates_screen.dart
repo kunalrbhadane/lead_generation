@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:lead_generation/features/home/home_screen.dart';
 import 'package:lead_generation/features/leads/quick_support_request_screen.dart';
 import 'package:lead_generation/features/profile/your_profile_screen.dart';
@@ -10,27 +11,39 @@ import '../../core/theme/app_theme.dart';
 
 import 'package:provider/provider.dart';
 import '../updates/providers/video_provider.dart';
+import '../../features/home/providers/daily_update_provider.dart';
+import '../../features/home/models/daily_update_model.dart';
+import '../../features/home/daily_update_detail_screen.dart';
+import 'package:intl/intl.dart';
 
 
 class UpdatesScreen extends StatefulWidget {
-  const UpdatesScreen({super.key});
+  final bool initialTabIsVideos;
+  const UpdatesScreen({super.key, this.initialTabIsVideos = true});
 
   @override
   State<UpdatesScreen> createState() => _UpdatesScreenState();
 }
 
 class _UpdatesScreenState extends State<UpdatesScreen> {
-  bool _isVideosTab = true;
+  late bool _isVideosTab;
 
   @override
   void initState() {
     super.initState();
+    _isVideosTab = widget.initialTabIsVideos;
     // Fetch videos when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<VideoProvider>(context, listen: false).fetchVideos();
+      // Ensure daily updates are fetched if navigating directly or if empty
+      if (!_isVideosTab) {
+         final updateProvider = Provider.of<DailyUpdateProvider>(context, listen: false);
+         if (updateProvider.dailyUpdates.isEmpty) {
+           updateProvider.fetchDailyUpdates();
+         }
+      }
     });
   }
-
   Future<void> _launchUrl(String urlString) async {
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
@@ -178,69 +191,101 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                         topRight: Radius.circular(30),
                       ),
                     ),
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 25, 20, 120), // Bottom padding for nav bar
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _isVideosTab ? "See All Videos" : "See all Updates From Below",
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
+                    child: RefreshIndicator(
+                      onRefresh: () async {
+                        if (_isVideosTab) {
+                          await Provider.of<VideoProvider>(context, listen: false).fetchVideos();
+                        } else {
+                          await Provider.of<DailyUpdateProvider>(context, listen: false).fetchDailyUpdates();
+                        }
+                      },
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: (ScrollNotification scrollInfo) {
+                           if (!_isVideosTab && !scrollInfo.metrics.atEdge && scrollInfo.metrics.pixels >= scrollInfo.metrics.maxScrollExtent - 200) {
+                             final updateProvider = Provider.of<DailyUpdateProvider>(context, listen: false);
+                             if (!updateProvider.isLoading && !updateProvider.isMoreLoading && updateProvider.hasMore) {
+                               updateProvider.loadMore();
+                             }
+                           }
+                           return false; // Allow further propagation
+                        },
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(20, 25, 20, 120), // Bottom padding for nav bar
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _isVideosTab ? "See All Videos" : "See all Updates From Below",
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              
+                              if (_isVideosTab) 
+                                 Consumer<VideoProvider>(
+                                   builder: (context, provider, child) {
+                                     if (provider.isLoading) {
+                                       return _buildVideoSkeleton();
+                                     }
+                                     
+                                     if (provider.errorMessage != null) {
+                                       return Center(child: Padding(
+                                         padding: const EdgeInsets.all(20.0),
+                                         child: Text('Error: ${provider.errorMessage}'),
+                                       ));
+                                     }
+            
+                                     if (provider.videos.isEmpty) {
+                                        return const Center(child: Padding(
+                                          padding: EdgeInsets.all(20.0),
+                                          child: Text("No videos found."),
+                                        ));
+                                     }
+            
+                                     return Column(
+                                       children: provider.videos.map((video) => _buildVideoCard(context, video)).toList(),
+                                     );
+                                   },
+                                 )
+                               else 
+                                 Consumer<DailyUpdateProvider>(
+                                   builder: (context, provider, child) {
+                                      if (provider.isLoading) {
+                                        return const Center(child: CircularProgressIndicator(color: AppTheme.darkGreen));
+                                      }
+                                      
+                                      if (provider.dailyUpdates.isEmpty) {
+                                         return const Center(child: Padding(
+                                           padding: EdgeInsets.all(20.0),
+                                           child: Text("No updates available."),
+                                         ));
+                                      }
+
+                                      return Column(
+                                        children: [
+                                          ...provider.dailyUpdates.map((update) => _buildUpdateCard(update)).toList(),
+                                          if (provider.isMoreLoading)
+                                            const Padding(
+                                              padding: EdgeInsets.all(16.0),
+                                              child: Center(child: CircularProgressIndicator(color: AppTheme.darkGreen)),
+                                            )
+                                        ],
+                                      );
+                                   }
+                                 )
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          
-                          if (_isVideosTab) 
-                             Consumer<VideoProvider>(
-                               builder: (context, provider, child) {
-                                 if (provider.isLoading) {
-                                   return const Center(child: Padding(
-                                     padding: EdgeInsets.all(20.0),
-                                     child: CircularProgressIndicator(),
-                                   ));
-                                 }
-                                 
-                                 if (provider.errorMessage != null) {
-                                   return Center(child: Padding(
-                                     padding: const EdgeInsets.all(20.0),
-                                     child: Text('Error: ${provider.errorMessage}'),
-                                   ));
-                                 }
-
-                                 if (provider.videos.isEmpty) {
-                                    return const Center(child: Padding(
-                                      padding: EdgeInsets.all(20.0),
-                                      child: Text("No videos found."),
-                                    ));
-                                 }
-
-                                 return Column(
-                                   children: provider.videos.map((video) => _buildVideoCard(context, video)).toList(),
-                                 );
-                               },
-                             )
-                           else ...[
-                            _buildUpdateCard(),
-                            _buildUpdateCard(),
-                          ]
-                        ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ],
             ),
-          ),
-
-          // 3. Bottom Navigation Bar
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: const CustomBottomNavBar(currentIndex: 2),
           ),
         ],
       ),
@@ -321,189 +366,146 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     );
   }
 
-  Widget _buildUpdateCard() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        
-          border: Border(
-    top: BorderSide(
-      color: AppTheme.lightGreen,
-      width: 2,
-    )),
-      ),
-      child: Row(
-        children: [
-          // Thumbnail
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Image.network(
-              'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=300&q=80',
-              height: 90,
-              width: 90,
-              fit: BoxFit.cover,
-            ),
+  Widget _buildUpdateCard(DailyUpdateModel update) {
+    // Format date logic
+    String formattedDate = '';
+    String timeAgo = '';
+    try {
+      DateTime dateTime = DateTime.parse(update.createdAt);
+      formattedDate = DateFormat('dd MMMM yyyy').format(dateTime);
+      final difference = DateTime.now().difference(dateTime);
+      if (difference.inDays > 0) {
+        timeAgo = '${difference.inDays} days ago';
+      } else if (difference.inHours > 0) {
+         timeAgo = '${difference.inHours} hours ago';
+      } else {
+        timeAgo = '${difference.inMinutes} mins ago';
+      }
+    } catch (_) {}
+
+    return GestureDetector(
+      onTap: () {
+         Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DailyUpdateDetailScreen(update: update),
           ),
-          const SizedBox(width: 12),
-          // Content
-          Expanded(
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 15),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(25),
+            border: Border(
+              top: BorderSide(
+                color: AppTheme.lightGreen,
+                width: 2,
+            )),
+        ),
+        child: Row(
+          children: [
+            // Thumbnail
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.network(
+                update.image,
+                height: 90,
+                width: 90,
+                fit: BoxFit.cover,
+                errorBuilder: (ctx, err, _) => Container(
+                   height: 90, width: 90, color: Colors.grey[200], child: const Icon(Icons.image_not_supported)
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    update.headline,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Colors.black87
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_month, color: AppTheme.lightGreen, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        formattedDate,
+                        style: const TextStyle(
+                          color: AppTheme.lightGreen,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        timeAgo,
+                        style: const TextStyle(
+                           color: AppTheme.lightGreen,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  )
+                ],
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  }
+
+  Widget _buildVideoSkeleton() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Column(
+        children: List.generate(3, (index) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Scholarship Applications Now Open",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: Colors.black87
+                Container(width: 150, height: 16, color: Colors.white),
+                const SizedBox(height: 8),
+                Container(width: double.infinity, height: 12, color: Colors.white),
+                const SizedBox(height: 15),
+                Container(
+                  height: 180,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                     color: Colors.white,
+                     borderRadius: BorderRadius.circular(15),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_month, color: AppTheme.lightGreen, size: 16),
-                    const SizedBox(width: 4),
-                    const Text(
-                      "12 June 2025",
-                      style: TextStyle(
-                        color: AppTheme.lightGreen,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500
-                      ),
-                    ),
-                    const Spacer(),
-                    const Text(
-                      "2 hours ago",
-                      style: TextStyle(
-                         color: AppTheme.lightGreen,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                )
               ],
             ),
-          )
-        ],
+          );
+        }),
       ),
     );
   }
 
-  Widget _buildBottomNavBar(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12 , 10, 20, 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(38),
-          topRight: Radius.circular(38),
-          bottomLeft: Radius.circular(38),
-          bottomRight: Radius.circular(38),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Left Pill: Navigation Icons
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F8E9), 
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween, 
-                children: [
-                   GestureDetector(
-                     onTap: () {
-                         Navigator.pushAndRemoveUntil(
-                          context, 
-                          MaterialPageRoute(builder: (context) => const HomeScreen()),
-                          (route) => false
-                        );
-                     },
-                     child: const Icon(Icons.home_outlined, color: AppTheme.darkGreen, size: 26),
-                   ),
-                   
-                   GestureDetector(
-                     onTap: () {
-                       Navigator.push(
-                          context, 
-                          MaterialPageRoute(builder: (context) => const SearchScreen()),
-                        );
-                     },
-                     child: const Icon(Icons.search, color: AppTheme.darkGreen, size: 26),
-                   ),
 
-                   // Play Active
-                   Container(
-                    width: 45,
-                    height: 45,
-                    decoration: const BoxDecoration(
-                      gradient: AppTheme.headerGradient, 
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.play_circle_fill, color: Colors.white, size: 24),
-                  ),
-
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const YourProfileScreen()),
-                      );
-                    },
-                    child: const Icon(Icons.person_outline, color: AppTheme.darkGreen, size: 26),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          const SizedBox(width: 10),
-
-          // Right Pill: Need Help
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context, 
-                MaterialPageRoute(builder: (context) => const QuickSupportRequestScreen()),
-              );
-            },
-            child: Container(
-               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-               decoration: BoxDecoration(
-                 gradient: AppTheme.headerGradient, 
-                 borderRadius: BorderRadius.circular(30),
-               ),
-               child: Row(
-                 children: const [
-                   Icon(Icons.chat_bubble_outline_rounded, color: Colors.white, size: 20),
-                   SizedBox(width: 8),
-                   Text('Need Help ?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                 ],
-               ),
-             ),
-          )
-        ],
-      ),
-    );
-  }
-}
 
 // Custom Clipper for the Top-Right Cutout
 class _CardClipper extends CustomClipper<Path> {
