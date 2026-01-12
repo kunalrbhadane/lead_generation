@@ -689,10 +689,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildNavItem(IconData icon, {required bool isSelected}) {
-    // Helper functionality moved inline for specific layout control
-    return const SizedBox.shrink(); 
-  }
 }
 
 class _BannerCutoutClipper extends CustomClipper<Path> {

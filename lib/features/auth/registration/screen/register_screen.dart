@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import '../../../../features/auth/repository/auth_repository.dart';
 import '../../login/screen/login_screen.dart';
 import '../widgets/register_widgets.dart';
 
@@ -16,6 +19,8 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   late PageController _pageController;
   int _currentPage = 0;
   int _selectedCategoryIndex = -1;
+  final AuthRepository _authRepository = AuthRepository();
+  bool _isLoading = false;
 
   List<Widget> _pages = [];
   List<Map<String, dynamic>> _stepData = [];
@@ -23,9 +28,24 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
 
+  // Controllers for all form fields
+  final Map<String, TextEditingController> _controllers = {};
+  
+  // Files
+  final Map<String, dynamic> _files = {
+    'userProfile': null,
+    'AdhaarCard': [],
+    'OBCCertificate': [],
+    'Marksheets': [],
+  };
+
+  // Form Keys
+  final _personalInfoFormKey = GlobalKey<FormState>();
+
   @override
   void initState() {
     super.initState();
+    _initializeControllers();
     _pageController = PageController();
     _buildInitialFlow();
 
@@ -39,41 +59,109 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     ]).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut));
   }
 
+  void _initializeControllers() {
+    final fields = [
+      'FullName', 'ContactNo', 'Email', 'DateofBirth', 'Age', 'State', 'City', 'Caste', 'About',
+      'JobTitle', 'CompanyName', 'TotalExperience',
+      'BusinessName', 'Services', 'Place',
+      'CurrentQualification', 'FieldofStudy', 'CurrentStatus', 'Institute',
+      'Notes'
+    ];
+    for (var field in fields) {
+      _controllers[field] = TextEditingController();
+    }
+  }
+
+  Future<void> _pickFile(String key, {bool allowMultiple = false}) async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(allowMultiple: allowMultiple);
+    if (result != null) {
+      setState(() {
+        if (allowMultiple) {
+          final List<File> files = result.paths.map((path) => File(path!)).toList();
+          _files[key] = files;
+        } else {
+          _files[key] = File(result.files.single.path!);
+        }
+        _updateRegistrationFlow(); // Regenerate widgets to show new filenames
+      });
+    }
+  }
+
+  String? _getFileName(String key) {
+    final value = _files[key];
+    if (value is File) {
+      return value.path.split(Platform.pathSeparator).last;
+    } else if (value is List<File> && value.isNotEmpty) {
+      return value.map((f) => f.path.split(Platform.pathSeparator).last).join(', ');
+    }
+    return null;
+  }
+
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() {
+        _controllers['DateofBirth']?.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      });
+    }
+  }
+
   void _buildInitialFlow() {
-    setState(() {
-      _selectedCategoryIndex = -1;
-      _pages = [
-        const PersonalInfoForm(),
-        SelectCategoryForm(
-          onSelectionChanged: (selectedIndex) {
-            setState(() => _selectedCategoryIndex = selectedIndex);
-          },
-        ),
-      ];
-      _stepData = [
-        {'step': 'Step 1 of 4', 'progress': 0.17},
-        {'step': 'Step 2 of 3', 'progress': 0.30},
-      ];
-    });
+    _updateRegistrationFlow();
   }
 
   void _updateRegistrationFlow() {
-    List<Widget> updatedPages = [_pages[0], _pages[1]];
+    List<Widget> updatedPages = [
+      PersonalInfoForm(
+        formKey: _personalInfoFormKey,
+        controllers: _controllers,
+        onProfileImageTap: () => _pickFile('userProfile'),
+        profileImage: _files['userProfile'] as File?,
+        onDateOfBirthTap: () => _selectDate(),
+      ),
+      SelectCategoryForm(
+        initialIndex: _selectedCategoryIndex,
+        onSelectionChanged: (selectedIndex) {
+          setState(() {
+            _selectedCategoryIndex = selectedIndex;
+            _updateRegistrationFlow();
+          });
+        },
+      ),
+    ];
     
-    switch (_selectedCategoryIndex) {
-      case 0: // Student
-        updatedPages.addAll([const QualificationDetailsForm(), const DocumentUploadForm()]);
-        break;
-      case 1: // Professionals
-        updatedPages.add(const CompanyDetailsForm());
-        break;
-      case 2: // Business
-        updatedPages.add(const BusinessDetailsForm());
-        break;
-      case 3: // Others
-        updatedPages.add(const OtherDetailsForm());
-        break;
-      default: return;
+    if (_selectedCategoryIndex != -1) {
+      switch (_selectedCategoryIndex) {
+        case 0: // Student
+          updatedPages.addAll([
+            QualificationDetailsForm(
+              controllers: _controllers,
+              onMarksheetTap: () => _pickFile('Marksheets', allowMultiple: true),
+              marksheetFileName: _getFileName('Marksheets'),
+            ),
+            DocumentUploadForm(
+              onAdhaarTap: () => _pickFile('AdhaarCard', allowMultiple: true),
+              adhaarFileName: _getFileName('AdhaarCard'),
+              onOBCTap: () => _pickFile('OBCCertificate', allowMultiple: true),
+              obcFileName: _getFileName('OBCCertificate'),
+            )
+          ]);
+          break;
+        case 1: // Professionals
+          updatedPages.add(CompanyDetailsForm(controllers: _controllers));
+          break;
+        case 2: // Business
+          updatedPages.add(BusinessDetailsForm(controllers: _controllers));
+          break;
+        case 3: // Others
+          updatedPages.add(OtherDetailsForm(controllers: _controllers));
+          break;
+      }
     }
 
     setState(() {
@@ -91,12 +179,55 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
 
   @override
   void dispose() {
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
     _pageController.dispose();
     _shakeController.dispose();
     super.dispose();
   }
 
+  Future<void> _register() async {
+    setState(() => _isLoading = true);
+    
+    // Construct fields map
+    final Map<String, String> fields = {};
+    _controllers.forEach((key, value) {
+      if (value.text.isNotEmpty) {
+        fields[key] = value.text;
+      }
+    });
+
+    // Add hardcoded IDs for now (ideally fetched)
+    fields['CategoryId'] = '6940fcc21ff3bea7c7d74fb2'; // Values strictly from user example for testing
+    fields['SupportId'] = '694106ec8f4cff649bb7cf06';
+
+    // Construct files map
+    final Map<String, dynamic> filesToSend = {};
+    _files.forEach((key, value) {
+      if (value != null) {
+        if (value is List && value.isEmpty) return; // Skip empty lists
+        filesToSend[key] = value;
+      }
+    });
+
+    // SIMULATE API CALL
+    await Future.delayed(const Duration(seconds: 2));
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const RegistrationSuccessScreen()), (route) => false);
+    }
+  }
+
   void _goToNextPage() {
+    if (_currentPage == 0) {
+      if (_personalInfoFormKey.currentState!.validate()) {
+        _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      }
+      return;
+    }
+
     if (_currentPage == 1) {
       _updateRegistrationFlow();
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -108,7 +239,7 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
     }
     
     if (_currentPage == _pages.length - 1) {
-      Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const RegistrationSuccessScreen()), (route) => false);
+      _register();
     } else {
       _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     }
@@ -196,7 +327,9 @@ class _RegisterScreenState extends State<RegisterScreen> with SingleTickerProvid
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               ),
-              child: Row(
+              child: _isLoading 
+                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text('Continue', style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600, color: isContinueButtonEnabled ? Colors.white : Colors.grey.shade600)),

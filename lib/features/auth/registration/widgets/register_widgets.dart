@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_colors.dart';
 
@@ -43,7 +45,28 @@ class CustomTextFormField extends StatelessWidget {
   final bool isDropdown;
   final bool isMultiLine;
 
-  const CustomTextFormField({super.key, required this.label, required this.hint, this.isDropdown = false, this.isMultiLine = false});
+  final TextEditingController? controller;
+  final bool readOnly;
+  final VoidCallback? onTap;
+  final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
+  final List<TextInputFormatter>? inputFormatters;
+  final int? maxLength;
+
+  const CustomTextFormField({
+    super.key, 
+    required this.label, 
+    required this.hint, 
+    this.isDropdown = false, 
+    this.isMultiLine = false, 
+    this.controller, 
+    this.readOnly = false, 
+    this.onTap,
+    this.keyboardType,
+    this.validator,
+    this.inputFormatters,
+    this.maxLength,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +78,13 @@ class CustomTextFormField extends StatelessWidget {
           Text(label, style: GoogleFonts.poppins(fontWeight: FontWeight.w500, color: AppColors.textDark, fontSize: 14)),
           const SizedBox(height: 6),
           TextFormField(
+            controller: controller,
+            readOnly: readOnly,
+            onTap: onTap,
+            keyboardType: keyboardType,
+            validator: validator,
+            inputFormatters: inputFormatters,
+            maxLength: maxLength,
             maxLines: isMultiLine ? 4 : 1,
             decoration: InputDecoration(
               hintText: hint,
@@ -62,6 +92,7 @@ class CustomTextFormField extends StatelessWidget {
               filled: true,
               fillColor: Colors.white,
               isDense: true,
+              counterText: '',
               contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               suffixIcon: isDropdown ? const Icon(Icons.keyboard_arrow_down, color: AppColors.textGrey) : null,
@@ -76,8 +107,10 @@ class CustomTextFormField extends StatelessWidget {
 class FileUploadField extends StatelessWidget {
   final String label;
   final String hint;
+  final Function() onTap;
+  final String? selectedFileName;
 
-  const FileUploadField({super.key, required this.label, this.hint = 'Upload'});
+  const FileUploadField({super.key, required this.label, this.hint = 'Upload', required this.onTap, this.selectedFileName});
 
   @override
   Widget build(BuildContext context) {
@@ -89,10 +122,14 @@ class FileUploadField extends StatelessWidget {
           Text(label, style: GoogleFonts.poppins(fontWeight: FontWeight.w500, color: AppColors.textDark, fontSize: 14)),
           const SizedBox(height: 8),
           TextFormField(
-            enabled: false,
+            readOnly: true,
+            onTap: onTap,
             decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: GoogleFonts.poppins(color: AppColors.textGrey.withOpacity(0.7), fontSize: 13),
+              hintText: selectedFileName ?? hint,
+              hintStyle: GoogleFonts.poppins(
+                color: selectedFileName != null ? AppColors.textDark : AppColors.textGrey.withOpacity(0.7), 
+                fontSize: 13
+              ),
               filled: true,
               fillColor: Colors.white,
               isDense: true,
@@ -113,32 +150,108 @@ class FileUploadField extends StatelessWidget {
 // -- Widgets for Step 1: Personal Information --
 
 class PersonalInfoForm extends StatelessWidget {
-  const PersonalInfoForm({super.key});
+  final Map<String, TextEditingController> controllers;
+  final VoidCallback? onProfileImageTap;
+  final File? profileImage;
+  final VoidCallback? onDateOfBirthTap;
+  final GlobalKey<FormState> formKey;
+  
+  const PersonalInfoForm({
+    super.key, 
+    required this.controllers, 
+    this.onProfileImageTap, 
+    this.profileImage, 
+    this.onDateOfBirthTap,
+    required this.formKey,
+  });
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
-      child: Container(
-        padding: const EdgeInsets.all(24.0),
-        decoration: BoxDecoration(color: AppColors.backgroundGrey, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), spreadRadius: 1, blurRadius: 10)]),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Personal Information', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textDark)),
-            const SizedBox(height: 24),
-            Center(child: CircleAvatar(radius: 40, backgroundColor: Colors.white, child: Icon(Icons.camera_alt, size: 30, color: Colors.grey.shade400))),
-            const SizedBox(height: 24),
-            const CustomTextFormField(label: 'Full Name', hint: 'Enter your name'),
-            const CustomTextFormField(label: 'Contact No', hint: 'Enter your contact no'),
-            const CustomTextFormField(label: 'Gender', hint: 'Select', isDropdown: true),
-            const CustomTextFormField(label: 'Age', hint: 'Enter your age'),
-            const CustomTextFormField(label: 'Whatsapp contact no', hint: 'Enter you contact no'),
-            const CustomTextFormField(label: 'State', hint: 'Select', isDropdown: true),
-            const CustomTextFormField(label: 'City', hint: 'Enter your city'),
-            const CustomTextFormField(label: 'Caste', hint: 'Select', isDropdown: true),
-            const CustomTextFormField(label: 'About Description', hint: 'Enter about yourself', isMultiLine: true),
-          ],
+      child: Form(
+        key: formKey,
+        child: Container(
+          padding: const EdgeInsets.all(24.0),
+          decoration: BoxDecoration(color: AppColors.backgroundGrey, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), spreadRadius: 1, blurRadius: 10)]),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Personal Information', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textDark)),
+              const SizedBox(height: 24),
+              Center(
+                child: GestureDetector(
+                  onTap: onProfileImageTap,
+                  child: CircleAvatar(
+                    radius: 40, 
+                    backgroundColor: Colors.white, 
+                    backgroundImage: profileImage != null ? FileImage(profileImage!) : null,
+                    child: profileImage == null ? Icon(Icons.camera_alt, size: 30, color: Colors.grey.shade400) : null
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+              CustomTextFormField(
+                label: 'Full Name', 
+                hint: 'Enter your name', 
+                controller: controllers['FullName'],
+                validator: (value) => value == null || value.isEmpty ? 'Name is required' : null,
+              ),
+
+              CustomTextFormField(
+                label: 'Contact No', 
+                hint: 'Enter your contact no', 
+                controller: controllers['ContactNo'],
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Contact no is required';
+                  if (value.length != 10) return 'Enter valid 10 digit number';
+                  return null;
+                },
+              ),
+
+              CustomTextFormField(
+                label: 'Email', 
+                hint: 'Enter your email', 
+                controller: controllers['Email'],
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) return 'Email is required';
+                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) return 'Enter valid email';
+                  return null;
+                },
+              ),
+
+              CustomTextFormField(
+                label: 'Date of Birth', 
+                hint: 'Select Date', 
+                controller: controllers['DateofBirth'], 
+                readOnly: true, 
+                onTap: onDateOfBirthTap,
+                validator: (value) => value == null || value.isEmpty ? 'Date of Birth is required' : null,
+              ),
+
+              const CustomTextFormField(label: 'Gender', hint: 'Select', isDropdown: true),
+              CustomTextFormField(
+                label: 'Whatsapp contact no', 
+                hint: 'Enter you contact no',
+                keyboardType: TextInputType.phone,
+                maxLength: 10,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              ),
+
+              CustomTextFormField(label: 'State', hint: 'Select', isDropdown: true, controller: controllers['State']),
+
+              CustomTextFormField(label: 'City', hint: 'Enter your city', controller: controllers['City']),
+
+              CustomTextFormField(label: 'Caste', hint: 'Select', isDropdown: true, controller: controllers['Caste']),
+
+              const CustomTextFormField(label: 'About Description (Optional)', hint: 'Enter about yourself', isMultiLine: true),
+            ],
+          ),
         ),
       ),
     );
@@ -179,7 +292,13 @@ class CategoryCard extends StatelessWidget {
 }
 class SelectCategoryForm extends StatefulWidget {
   final Function(int) onSelectionChanged;
-  const SelectCategoryForm({super.key, required this.onSelectionChanged});
+  final int? initialIndex;
+
+  const SelectCategoryForm({
+    super.key,
+    required this.onSelectionChanged,
+    this.initialIndex,
+  });
 
   @override
   State<SelectCategoryForm> createState() => _SelectCategoryFormState();
@@ -187,6 +306,20 @@ class SelectCategoryForm extends StatefulWidget {
 
 class _SelectCategoryFormState extends State<SelectCategoryForm> {
   int? _selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex;
+  }
+
+  @override
+  void didUpdateWidget(SelectCategoryForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialIndex != oldWidget.initialIndex) {
+      _selectedIndex = widget.initialIndex;
+    }
+  }
 
   void _handleSelection(int index) {
     setState(() {
@@ -249,7 +382,8 @@ class _SelectCategoryFormState extends State<SelectCategoryForm> {
 // -- Conditional Widgets --
 
 class CompanyDetailsForm extends StatelessWidget {
-  const CompanyDetailsForm({super.key});
+  final Map<String, TextEditingController> controllers;
+  const CompanyDetailsForm({super.key, required this.controllers});
 
   @override
   Widget build(BuildContext context) {
@@ -263,9 +397,9 @@ class CompanyDetailsForm extends StatelessWidget {
           children: [
             Text('Company Details', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textDark)),
             const SizedBox(height: 24),
-            const CustomTextFormField(label: 'Job Title', hint: 'Enter'),
-            const CustomTextFormField(label: 'Company Name', hint: 'Enter'),
-            const CustomTextFormField(label: 'Total Experience', hint: 'Enter'),
+            CustomTextFormField(label: 'Job Title', hint: 'Enter', controller: controllers['JobTitle']),
+            CustomTextFormField(label: 'Company Name', hint: 'Enter', controller: controllers['CompanyName']),
+            CustomTextFormField(label: 'Total Experience', hint: 'Enter', controller: controllers['TotalExperience']),
           ],
         ),
       ),
@@ -274,7 +408,8 @@ class CompanyDetailsForm extends StatelessWidget {
 }
 
 class BusinessDetailsForm extends StatelessWidget {
-  const BusinessDetailsForm({super.key});
+  final Map<String, TextEditingController> controllers;
+  const BusinessDetailsForm({super.key, required this.controllers});
 
   @override
   Widget build(BuildContext context) {
@@ -288,9 +423,9 @@ class BusinessDetailsForm extends StatelessWidget {
           children: [
             Text('Business Details', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textDark)),
             const SizedBox(height: 24),
-            const CustomTextFormField(label: 'Business Name', hint: 'Enter'),
-            const CustomTextFormField(label: 'Services', hint: 'Enter'),
-            const CustomTextFormField(label: 'Place', hint: 'Enter'),
+            CustomTextFormField(label: 'Business Name', hint: 'Enter', controller: controllers['BusinessName']),
+            CustomTextFormField(label: 'Services', hint: 'Enter', controller: controllers['Services']),
+            CustomTextFormField(label: 'Place', hint: 'Enter', controller: controllers['Place']),
           ],
         ),
       ),
@@ -301,7 +436,11 @@ class BusinessDetailsForm extends StatelessWidget {
 // -- Final Step Widgets --
 
 class QualificationDetailsForm extends StatelessWidget {
-  const QualificationDetailsForm({super.key});
+  final Map<String, TextEditingController> controllers;
+  final VoidCallback? onMarksheetTap;
+  final String? marksheetFileName;
+
+  const QualificationDetailsForm({super.key, required this.controllers, this.onMarksheetTap, this.marksheetFileName});
 
   @override
   Widget build(BuildContext context) {
@@ -315,11 +454,11 @@ class QualificationDetailsForm extends StatelessWidget {
           children: [
             Text('Qualification Details', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textDark)),
             const SizedBox(height: 24),
-            const CustomTextFormField(label: 'Current Qualification', hint: 'Select', isDropdown: true),
-            const CustomTextFormField(label: 'Field of Study', hint: 'Select', isDropdown: true),
-            const CustomTextFormField(label: 'Current Status', hint: 'Select', isDropdown: true),
-            const CustomTextFormField(label: 'Institute', hint: 'Select', isDropdown: true),
-            const FileUploadField(label: 'Marksheet'),
+            CustomTextFormField(label: 'Current Qualification', hint: 'Select', isDropdown: true, controller: controllers['CurrentQualification']),
+            CustomTextFormField(label: 'Field of Study', hint: 'Select', isDropdown: true, controller: controllers['FieldofStudy']),
+            CustomTextFormField(label: 'Current Status', hint: 'Select', isDropdown: true, controller: controllers['CurrentStatus']),
+            CustomTextFormField(label: 'Institute', hint: 'Select', isDropdown: true, controller: controllers['Institute']),
+            FileUploadField(label: 'Marksheet', onTap: onMarksheetTap ?? () {}, selectedFileName: marksheetFileName),
           ],
         ),
       ),
@@ -328,7 +467,18 @@ class QualificationDetailsForm extends StatelessWidget {
 }
 
 class DocumentUploadForm extends StatefulWidget {
-  const DocumentUploadForm({super.key});
+  final VoidCallback? onAdhaarTap;
+  final String? adhaarFileName;
+  final VoidCallback? onOBCTap;
+  final String? obcFileName;
+
+  const DocumentUploadForm({
+    super.key, 
+    this.onAdhaarTap, 
+    this.adhaarFileName, 
+    this.onOBCTap, 
+    this.obcFileName,
+  });
 
   @override
   State<DocumentUploadForm> createState() => _DocumentUploadFormState();
@@ -349,7 +499,7 @@ class _DocumentUploadFormState extends State<DocumentUploadForm> {
           children: [
             Text('Document Upload', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textDark)),
             const SizedBox(height: 24),
-            const FileUploadField(label: 'Adhaar Card'),
+            FileUploadField(label: 'Adhaar Card', onTap: widget.onAdhaarTap ?? () {}, selectedFileName: widget.adhaarFileName),
             const SizedBox(height: 16),
             Text('Do You Have OBC Certificate ?', style: GoogleFonts.poppins(fontWeight: FontWeight.w500, color: AppColors.textDark, fontSize: 14)),
             const SizedBox(height: 8),
@@ -363,9 +513,9 @@ class _DocumentUploadFormState extends State<DocumentUploadForm> {
               ],
             ),
             if (_hasOBCCertificate == true)
-              const Padding(
-                padding: EdgeInsets.only(top: 16.0),
-                child: FileUploadField(label: '', hint: 'Upload OBC Certificate'),
+              Padding(
+                padding: const EdgeInsets.only(top: 16.0),
+                child: FileUploadField(label: '', hint: 'Upload OBC Certificate', onTap: widget.onOBCTap ?? () {}, selectedFileName: widget.obcFileName),
               ),
           ],
         ),
@@ -375,7 +525,8 @@ class _DocumentUploadFormState extends State<DocumentUploadForm> {
 }
 
 class OtherDetailsForm extends StatelessWidget {
-  const OtherDetailsForm({super.key});
+  final Map<String, TextEditingController> controllers;
+  const OtherDetailsForm({super.key, required this.controllers});
 
   @override
   Widget build(BuildContext context) {
@@ -389,7 +540,7 @@ class OtherDetailsForm extends StatelessWidget {
           children: [
             Text('Other Details', style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.textDark)),
             const SizedBox(height: 24),
-            const CustomTextFormField(label: 'Note', hint: 'Enter your note here...', isMultiLine: true),
+            CustomTextFormField(label: 'Note', hint: 'Enter your note here...', isMultiLine: true, controller: controllers['Notes']),
           ],
         ),
       ),

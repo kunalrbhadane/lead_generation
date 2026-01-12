@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lead_generation/features/auth/landing_screen/widgets/landingscreen_widgets.dart';
-
-
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -15,67 +14,47 @@ class _LandingScreenState extends State<LandingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // =======================================================
-            // === THIS IS THE UPDATED IMAGE CONTAINER SECTION     ===
-            // =======================================================
-            // The container that allocates the top 50% of the screen height.
-            SizedBox(
-              height: size.height * 0.5,
-              // We use a Stack to allow for precise positioning of the image.
-              child: Stack(
-                // This is crucial to allow the image to "bleed" outside the bounds
-                // of the SizedBox without being cut off.
-                clipBehavior: Clip.none,
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 0.5.sh, // 50% of screen height
+              width: double.infinity,
+              child: const LandingHeroImage(),
+            ),
+          ),
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 25.h),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Positioned(
-                    // Apply the precise positioning from your design specs
-                    top: -35,
-                    left: -36,
-                    child: SizedBox(
-                      // Apply the exact width and height
-                      width: 459,
-                      height: 470,
-                      // Our clean, reusable widget goes inside
-                      child: const LandingHeroImage(),
-                    ),
+                  const HeadlineText(),
+                  SizedBox(height: 5.h), // Minimum gap
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const ActionButtons(),
+                      SizedBox(height: 8.h),
+                      TermsAndConditionsCheckbox(
+                        value: _agreedToTerms,
+                        onChanged: (newValue) {
+                          setState(() {
+                            _agreedToTerms = newValue ?? false;
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            // =======================================================
-            // =======================================================
-
-            // Bottom part takes the remaining space on the screen
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const HeadlineText(),
-                    const ActionButtons(),
-                    TermsAndConditionsCheckbox(
-                      value: _agreedToTerms,
-                      onChanged: (newValue) {
-                        setState(() {
-                          _agreedToTerms = newValue ?? false;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

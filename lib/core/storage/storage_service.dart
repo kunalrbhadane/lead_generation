@@ -1,7 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class StorageService {
-  // Singleton pattern
   static final StorageService _instance = StorageService._internal();
   factory StorageService() => _instance;
   StorageService._internal();

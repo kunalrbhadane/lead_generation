@@ -178,12 +178,13 @@ class _YourProfileScreenState extends State<YourProfileScreen> {
           ),
 
           // 3. Bottom Navigation Bar
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: const CustomBottomNavBar(currentIndex: 3),
-          ),
+          if (MediaQuery.of(context).viewInsets.bottom == 0)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: const CustomBottomNavBar(currentIndex: 3),
+            ),
         ],
       ),
     );

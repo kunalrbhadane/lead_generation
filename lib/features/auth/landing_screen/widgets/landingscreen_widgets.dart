@@ -1,14 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:lead_generation/features/auth/registration/screen/register_screen.dart';
-
-
-// Make sure to adjust this path if your folder structure is different
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/theme/app_theme.dart';
-// ========= ADD THIS IMPORT FOR THE LOGIN SCREEN =========
 import '../../login/screen/login_screen.dart';
-// =========================================================
 
 /// The top hero image section with the collage and decorative sparkles.
 class LandingHeroImage extends StatelessWidget {
@@ -17,13 +13,29 @@ class LandingHeroImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
       children: [
         Positioned.fill(
           child: Image.asset(
             'assets/images/landing_hero.png',
-            fit: BoxFit.contain,
+            fit: BoxFit.cover,
+          ),
+        ),
+        // Gradient overlay for smoother transition to the content card
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.white.withOpacity(0.0),
+                  Colors.white.withOpacity(0.3),
+                  Colors.white,
+                ],
+                stops: const [0.0, 0.7, 0.9, 1.0],
+              ),
+            ),
           ),
         ),
       ],
@@ -41,10 +53,10 @@ class HeadlineText extends StatelessWidget {
       textAlign: TextAlign.start,
       text: TextSpan(
         style: GoogleFonts.montserratAlternates(
-          fontSize: 27.75,
+          fontSize: 28.sp, // Responsive font size
           fontWeight: FontWeight.w600,
           color: AppColors.textDark,
-          height: 1.3,
+          height: 1.5,
           letterSpacing: 0.0,
         ),
         children: const <TextSpan>[
@@ -70,11 +82,11 @@ class ActionButtons extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          height: 56,
+          height: 56.h,
           child: Container(
             decoration: BoxDecoration(
               gradient: AppTheme.headerGradient,
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(30.r),
             ),
             child: ElevatedButton(
               onPressed: () {
@@ -87,37 +99,35 @@ class ActionButtons extends StatelessWidget {
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
                 foregroundColor: AppColors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.r)),
                 elevation: 0,
               ),
               child: Text(
                 'Register Now',
-                style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+                style: GoogleFonts.poppins(fontSize: 18.sp, fontWeight: FontWeight.w600),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 10.h),
         SizedBox(
-          height: 56,
+          height: 56.h,
           child: OutlinedButton(
-            // ========= UPDATE THIS onPressed CALLBACK =========
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
               );
             },
-            // =================================================
             style: OutlinedButton.styleFrom(
               backgroundColor: AppColors.lightGreen,
               foregroundColor: AppColors.primaryGreen,
               side: BorderSide.none,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30.r)),
             ),
             child: Text(
               'Login',
-              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+              style: GoogleFonts.poppins(fontSize: 18.sp, fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -144,22 +154,22 @@ class TermsAndConditionsCheckbox extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         SizedBox(
-          height: 24,
-          width: 24,
+          height: 24.h,
+          width: 24.w,
           child: Checkbox(
             value: value,
             onChanged: onChanged,
             activeColor: AppColors.primaryGreen,
             checkColor: AppColors.white,
-            side: BorderSide(color: Colors.grey.shade300, width: 2),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            side: BorderSide(color: Colors.grey.shade300, width: 2.w),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.r)),
           ),
         ),
-        const SizedBox(width: 8),
-        const Flexible(
+        SizedBox(width: 8.w),
+        Flexible(
           child: Text(
             'By Continuing, You Agree To Our Terms &\nPrivacy Policy',
-            style: TextStyle(fontSize: 12, color: AppColors.textGrey),
+            style: TextStyle(fontSize: 12.sp, color: AppColors.textGrey),
           ),
         ),
       ],
